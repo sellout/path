@@ -3,6 +3,7 @@
 --     IS_WINDOWS    = False | True
 --     MONAD_PATH    = MonadThrow | MonadError PathException
 --     THROW         = throwM | throwError
+--     IMPORT        = Control.Monad.Catch (MonadThrow(..)) | Control.Monad.Except (MonadError(..))
 
 -- | This library provides a well-typed representation of paths in a filesystem
 -- directory tree.
@@ -100,8 +101,7 @@ import           Control.Applicative (Alternative(..))
 import           Control.DeepSeq (NFData (..))
 import           Control.Exception (Exception(..))
 import           Control.Monad (liftM, when)
-import           Control.Monad.Catch (MonadThrow(..))
-import           Control.Monad.Except (MonadError(..))
+import           IMPORT
 import           Data.Aeson (FromJSON (..), FromJSONKey(..), ToJSON(..))
 import qualified Data.Aeson.Types as Aeson
 import           Data.Data

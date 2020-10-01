@@ -20,24 +20,39 @@ flag dev
   manual:             True
   default:            False
 
+flag except
+  description:        Use MonadError instead of MonadThrow.
+  manual:             True
+  default:            False
+
 library
   hs-source-dirs:    src
   exposed-modules:   Path
-                   , Path.Except
-                   , Path.Except.Posix
-                   , Path.Except.Windows
                    , Path.Internal
                    , Path.Posix
                    , Path.Windows
-  build-depends:     aeson
-                   , base       >= 4.12     && < 5
-                   , deepseq
-                   , exceptions >= 0.4     && < 0.11
-                   , filepath   < 1.2.0.1  || >= 1.3
-                   , hashable   >= 1.2     && < 1.4
-                   , mtl
-                   , text
-                   , template-haskell
+  if flag(except)
+    build-depends:     aeson
+                     , base       >= 4.12     && < 5
+                     , deepseq
+                     , filepath   < 1.2.0.1  || >= 1.3
+                     , hashable   >= 1.2     && < 1.4
+                     , mtl
+                     , text
+                     , template-haskell
+  else
+    build-depends:     aeson
+                     , base       >= 4.12     && < 5
+                     , deepseq
+                     , exceptions >= 0.4     && < 0.11
+                     , filepath   < 1.2.0.1  || >= 1.3
+                     , hashable   >= 1.2     && < 1.4
+                     , text
+                     , template-haskell
+  if flag(except)
+    cpp-options:      -D "IMPORT=Control.Monad.Except (MonadError(..))" -D "MONAD_PATH=MonadError PathException" -D THROW=throwError
+  else
+    cpp-options:      -D "IMPORT=Control.Monad.Catch (MonadThrow(..))" -D MONAD_PATH=MonadThrow -D THROW=throwM
   if flag(dev)
     ghc-options:      -Wall -Werror
   else

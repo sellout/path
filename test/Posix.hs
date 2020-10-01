@@ -11,6 +11,7 @@ import Control.Applicative
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import Data.Either
 import Data.Maybe
 import Path.Posix
 import Path.Internal
@@ -55,12 +56,12 @@ restrictions =
      parseFails "/foo/bar/.."
   where parseFails x =
           it (show x ++ " should be rejected")
-             (isNothing (void (parseAbsDir x) <|>
-                         void (parseRelDir x) <|>
-                         void (parseAbsFile x) <|>
-                         void (parseRelFile x)))
+             (isLeft (void (parseAbsDir x) <|>
+                      void (parseRelDir x) <|>
+                      void (parseAbsFile x) <|>
+                      void (parseRelFile x)))
         parseSucceeds x with =
-          parserTest parseRelDir x (Just with)
+          parserTest (either (const Nothing) Just . parseRelDir) x (Just with)
 
 -- | The 'dirname' operation.
 operationDirname :: Spec
@@ -75,8 +76,8 @@ operationDirname = do
      dirname $(mkRelDir "bar"))
   it
     "dirname / must be a Rel path"
-    ((parseAbsDir $ show $ dirname (fromJust (parseAbsDir "/"))
-     :: Maybe (Path Abs Dir)) == Nothing)
+    ((either (const Nothing) Just . parseAbsDir . show . dirname . fromJust . either (const Nothing) Just $ parseAbsDir "/")
+     == Nothing)
 
 -- | The 'filename' operation.
 operationFilename :: Spec
@@ -135,18 +136,17 @@ operationStripProperPrefix =
         (stripProperPrefix $(mkAbsDir "///bar/")
                   ($(mkAbsDir "///bar/") </>
                    $(mkRelFile "bar/foo.txt")) ==
-         Just $(mkRelFile "bar/foo.txt"))
+         Right $(mkRelFile "bar/foo.txt"))
 
      it "stripProperPrefix parent (parent </> child) = child (unit test)"
         (stripProperPrefix $(mkRelDir "bar/")
                   ($(mkRelDir "bar/") </>
                    $(mkRelFile "bob/foo.txt")) ==
-         Just $(mkRelFile "bob/foo.txt"))
+         Right $(mkRelFile "bob/foo.txt"))
 
      it "stripProperPrefix parent parent = _|_"
-        (stripProperPrefix $(mkAbsDir "/home/chris/foo")
-                  $(mkAbsDir "/home/chris/foo") ==
-         Nothing)
+        (isLeft (stripProperPrefix $(mkAbsDir "/home/chris/foo")
+                                   $(mkAbsDir "/home/chris/foo")))
 
 -- | The '</>' operation.
 operationAppend :: Spec
@@ -193,8 +193,8 @@ parseAbsDirSpec =
      succeeding "///foo//bar////mu" (Path "/foo/bar/mu/")
      succeeding "///foo//bar/.//mu" (Path "/foo/bar/mu/")
 
-  where failing x = parserTest parseAbsDir x Nothing
-        succeeding x with = parserTest parseAbsDir x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseAbsDir) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseAbsDir) x (Just with)
 
 -- | Tests for the tokenizer.
 parseRelDirSpec :: Spec
@@ -219,8 +219,8 @@ parseRelDirSpec =
      succeeding "foo//bar////mu" (Path "foo/bar/mu/")
      succeeding "foo//bar/.//mu" (Path "foo/bar/mu/")
 
-  where failing x = parserTest parseRelDir x Nothing
-        succeeding x with = parserTest parseRelDir x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseRelDir) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseRelDir) x (Just with)
 
 -- | Tests for the tokenizer.
 parseAbsFileSpec :: Spec
@@ -239,8 +239,8 @@ parseAbsFileSpec =
      succeeding "///foo//bar////mu.txt" (Path "/foo/bar/mu.txt")
      succeeding "///foo//bar/.//mu.txt" (Path "/foo/bar/mu.txt")
 
-  where failing x = parserTest parseAbsFile x Nothing
-        succeeding x with = parserTest parseAbsFile x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseAbsFile) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseAbsFile) x (Just with)
 
 -- | Tests for the tokenizer.
 parseRelFileSpec :: Spec
@@ -269,8 +269,8 @@ parseRelFileSpec =
      succeeding "foo//bar////mu.txt" (Path "foo/bar/mu.txt")
      succeeding "foo//bar/.//mu.txt" (Path "foo/bar/mu.txt")
 
-  where failing x = parserTest parseRelFile x Nothing
-        succeeding x with = parserTest parseRelFile x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseRelFile) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseRelFile) x (Just with)
 
 -- | Parser test.
 parserTest :: (Show a1,Show a,Eq a1)

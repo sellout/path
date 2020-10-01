@@ -12,8 +12,9 @@ import Path.Internal
 import qualified System.FilePath as FilePath
 
 import Data.GenValidity
+import Data.Either (isRight)
 import Data.List (isInfixOf, isSuffixOf)
-import Data.Maybe (isJust, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Validity
 
 import Test.QuickCheck
@@ -37,8 +38,8 @@ instance Validity (Path Abs File) where
       , declare "The path does not end in /." $ not ("/." `isSuffixOf` fp)
       , declare "The path does not equal \".\"" $ fp /= "."
       , declare "The path does not a parent directory." $ not (hasParentDir fp)
-      , declare "The path can be identically parsed as an absolute file path." $
-        parseAbsFile fp == Just p
+      , declare "The path can be identically parsed as an absolute file path." .
+        either (const False) (== p) $ parseAbsFile fp
       ]
 
 -- | A relative path to a file is valid if:
@@ -63,8 +64,8 @@ instance Validity (Path Rel File) where
       , declare "The path is not empty" $ not (null fp)
       , declare "The path does not end in /." $ not ("/." `isSuffixOf` fp)
       , declare "The path does not a parent directory." $ not (hasParentDir fp)
-      , declare "The path can be identically parsed as a relative file path." $
-        parseRelFile fp == Just p
+      , declare "The path can be identically parsed as a relative file path." .
+        either (const False) (== p) $ parseRelFile fp
       ]
 
 -- | An absolute path to a directory is valid if:
@@ -81,8 +82,8 @@ instance Validity (Path Abs Dir) where
       , declare "The path has a trailing path separator." $ FilePath.hasTrailingPathSeparator fp
       , declare "System.FilePath considers the path valid." $ FilePath.isValid fp
       , declare "The path does not a parent directory." $ not (hasParentDir fp)
-      , declare "The path can be identically parsed as an absolute directory path." $
-        parseAbsDir fp == Just p
+      , declare "The path can be identically parsed as an absolute directory path." .
+        either (const False) (== p) $ parseAbsDir fp
       ]
 
 -- | A relative path to a directory is valid if:
@@ -101,33 +102,33 @@ instance Validity (Path Rel Dir) where
       , declare "System.FilePath considers the path valid." $ FilePath.isValid fp
       , declare "The path is not empty." $ not (null fp)
       , declare "The path does not a parent directory." $ not (hasParentDir fp)
-      , declare "The path can be identically parsed as a relative directory path." $
-        parseRelDir fp == Just p
+      , declare "The path can be identically parsed as a relative directory path." .
+        either (const False) (== p) $ parseRelDir fp
       ]
 
 instance GenUnchecked (Path Abs File) where
   genUnchecked = Path <$> genFilePath
 
 instance GenValid (Path Abs File) where
-  shrinkValid = shrinkValidWith parseAbsFile
+  shrinkValid = shrinkValidWith (rightToMaybe . parseAbsFile)
 
 instance GenUnchecked (Path Rel File) where
   genUnchecked = Path <$> genFilePath
 
 instance GenValid (Path Rel File) where
-  shrinkValid = shrinkValidWith parseRelFile
+  shrinkValid = shrinkValidWith (rightToMaybe . parseRelFile)
 
 instance GenUnchecked (Path Abs Dir) where
   genUnchecked = Path <$> genFilePath
 
 instance GenValid (Path Abs Dir) where
-  shrinkValid = shrinkValidWith parseAbsDir
+  shrinkValid = shrinkValidWith (rightToMaybe . parseAbsDir)
 
 instance GenUnchecked (Path Rel Dir) where
   genUnchecked = Path <$> genFilePath
 
 instance GenValid (Path Rel Dir) where
-  shrinkValid = shrinkValidWith parseRelDir
+  shrinkValid = shrinkValidWith (rightToMaybe . parseRelDir)
 
 data Extension =
   Extension String
@@ -138,7 +139,7 @@ instance Validity Extension where
     mconcat
       [ delve "Extension" ext
       , declare "It is possible to add the extension to \"./\"" $
-        isJust $ addExtension ext $(mkRelFile "x")
+        isRight $ addExtension ext $(mkRelFile "x")
       ]
 
 instance GenUnchecked Extension where
@@ -161,4 +162,7 @@ shrinkValidWith fun (Path f) = filter (/= (Path f)) . mapMaybe fun $ shrinkUnche
 
 shrinkValidExtension :: Extension -> [Extension]
 shrinkValidExtension (Extension s) =
-  map (Extension . drop 1 . toFilePath) $ mapMaybe (flip addExtension $(mkRelFile "x")) (shrink s)
+  map (Extension . drop 1 . toFilePath) $ mapMaybe (rightToMaybe . flip addExtension $(mkRelFile "x")) (shrink s)
+
+rightToMaybe :: Either a b -> Maybe b
+rightToMaybe = either (const Nothing) Just

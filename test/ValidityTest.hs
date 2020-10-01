@@ -10,7 +10,7 @@ import Control.Applicative
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as LBS
-import Data.Maybe
+import Data.Either
 import Path
 import Path.Internal
 import Test.Hspec
@@ -38,10 +38,10 @@ spec =
     genValidSpec @(Path Rel Dir)
     shrinkValidSpec @(Path Rel Dir)
     describe "Parsing" $ do
-      describe "Path Abs Dir" (parserSpec parseAbsDir)
-      describe "Path Rel Dir" (parserSpec parseRelDir)
-      describe "Path Abs File" (parserSpec parseAbsFile)
-      describe "Path Rel File" (parserSpec parseRelFile)
+      describe "Path Abs Dir" (parserSpec (either (const Nothing) Just . parseAbsDir))
+      describe "Path Rel Dir" (parserSpec (either (const Nothing) Just . parseRelDir))
+      describe "Path Abs File" (parserSpec (either (const Nothing) Just . parseAbsFile))
+      describe "Path Rel File" (parserSpec (either (const Nothing) Just . parseRelFile))
     describe "Operations" $ do
       describe "(</>)" operationAppend
       describe "stripProperPrefix" operationStripDir
@@ -93,19 +93,19 @@ operationStripDir = do
   forAllParentsAndChildren "stripProperPrefix parent (parent </> child) = child" $ \parent child ->
     if child == Path []
       then pure () -- TODO do we always need this condition?
-      else stripProperPrefix parent (parent </> child) `shouldBe` Just child
+      else stripProperPrefix parent (parent </> child) `shouldSatisfy` either (const False) (== child)
   it "produces a valid path on when passed a valid absolute file paths" $ do
     producesValidsOnValids2
-      (stripProperPrefix :: Path Abs Dir -> Path Abs File -> Maybe (Path Rel File))
+      ((either (const Nothing) Just .) . stripProperPrefix :: Path Abs Dir -> Path Abs File -> Maybe (Path Rel File))
   it "produces a valid path on when passed a valid absolute directory paths" $ do
     producesValidsOnValids2
-      (stripProperPrefix :: Path Abs Dir -> Path Abs Dir -> Maybe (Path Rel Dir))
+      ((either (const Nothing) Just .) . stripProperPrefix :: Path Abs Dir -> Path Abs Dir -> Maybe (Path Rel Dir))
   it "produces a valid path on when passed a valid relative file paths" $ do
     producesValidsOnValids2
-      (stripProperPrefix :: Path Rel Dir -> Path Rel File -> Maybe (Path Rel File))
+      ((either (const Nothing) Just .) . stripProperPrefix :: Path Rel Dir -> Path Rel File -> Maybe (Path Rel File))
   it "produces a valid path on when passed a valid relative directory paths" $ do
     producesValidsOnValids2
-      (stripProperPrefix :: Path Rel Dir -> Path Rel Dir -> Maybe (Path Rel Dir))
+      ((either (const Nothing) Just .) . stripProperPrefix :: Path Rel Dir -> Path Rel Dir -> Maybe (Path Rel Dir))
 
 -- | The '</>' operation.
 operationAppend :: Spec
@@ -127,53 +127,47 @@ extensionsSpec = do
   it "if addExtension a b succeeds then parseRelFile b succeeds - 2" $
     forAll genFilePath $ addExtGensValidFile . ("." ++)
   forAllFiles
-    "(toFilePath . fromJust . addExtension ext) file \
-        \== toFilePath a ++ b" $ \file ->
+    "(fmap toFilePath . addExtension ext) file \
+        \== Right (toFilePath a ++ b)" $ \file ->
     forAllValid $ \(Extension ext) ->
-      (toFilePath . fromJust . addExtension ext) file `shouldBe` toFilePath file ++ ext
+      (fmap toFilePath . addExtension ext) file `shouldSatisfy` either (const False) (== toFilePath file ++ ext)
   forAllFiles "splitExtension output joins to result in the original file" $ \file ->
     case splitExtension file of
-      Nothing -> pure ()
-      Just (f, ext) -> toFilePath f ++ ext `shouldBe` toFilePath file
+      Left _ -> pure ()
+      Right (f, ext) -> toFilePath f ++ ext `shouldBe` toFilePath file
   forAllFiles "splitExtension generates a valid filename and valid extension" $ \file ->
     case splitExtension file of
-      Nothing -> True
-      Just (f, ext) ->
+      Left _ -> True
+      Right (f, ext) ->
         case parseRelFile ext of
-          Nothing -> False
-          Just _ ->
+          Left _ -> False
+          Right _ ->
             case parseRelFile (toFilePath f) of
-              Nothing ->
-                case parseAbsFile (toFilePath f) of
-                  Nothing -> False
-                  Just _ -> True
-              Just _ -> True
+              Left _ -> isRight $ parseAbsFile (toFilePath f)
+              Right _ -> True
   forAllFiles "splitExtension >=> uncurry addExtension . swap == return" $ \file ->
     case splitExtension file of
-      Nothing -> pure ()
-      Just (f, ext) -> addExtension ext f `shouldBe` Just file
+      Left _ -> pure ()
+      Right (f, ext) -> addExtension ext f `shouldSatisfy` either (const False) (== file)
   forAllFiles "uncurry addExtension . swap >=> splitExtension == return" $ \file ->
     forAllValid $ \(Extension ext) ->
-      (addExtension ext file >>= splitExtension) `shouldReturn` (file, ext)
+      (addExtension ext file >>= splitExtension) `shouldSatisfy` either (const False) (== (file, ext))
   forAllFiles "fileExtension == (fmap snd) . splitExtension" $ \file ->
     case splitExtension file of
-      Nothing -> pure ()
-      Just (_, ext) -> fileExtension file `shouldBe` Just ext
+      Left _ -> pure ()
+      Right (_, ext) -> fileExtension file `shouldSatisfy` either (const False) (== ext)
   forAllFiles "flip addExtension file >=> fileExtension == return" $ \file ->
     forAllValid $ \(Extension ext) ->
-      (fileExtension . fromJust . addExtension ext) file `shouldReturn` ext
+      (fileExtension <=< addExtension ext) file `shouldSatisfy` either (const False) (== ext)
   forAllFiles "(fileExtension >=> flip replaceExtension file) file == return file" $ \file ->
     case fileExtension file of
-      Nothing -> pure ()
-      Just ext -> replaceExtension ext file `shouldBe` Just file
+      Left _ -> pure ()
+      Right ext -> replaceExtension ext file `shouldSatisfy` either (const False) (== file)
   where
     addExtGensValidFile p =
       case addExtension p $(mkRelFile "x") of
-        Nothing -> True
-        Just x ->
-          case parseRelFile p of
-            Nothing -> False
-            _ -> True
+        Left _ -> True
+        Right x -> isRight $ parseRelFile p
 
 forAllFiles :: Testable a => String -> (forall b. Path b File -> a) -> Spec
 forAllFiles n func = do

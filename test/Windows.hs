@@ -54,7 +54,7 @@ restrictions =
                          void (parseAbsFile x) <|>
                          void (parseRelFile x)))
         parseSucceeds x with =
-          parserTest parseRelDir x (Just with)
+          parserTest (either (const Nothing) Just . parseRelDir) x (Just with)
 
 -- | The 'dirname' operation.
 operationDirname :: Spec
@@ -247,8 +247,8 @@ parseAbsDirSpec =
      succeeding "/\\?\\C:\\" (Path "\\\\?\\C:\\")
      succeeding "\\\\?\\C:\\\\\\folder\\\\" (Path "\\\\?\\C:\\folder\\")
 
-  where failing x = parserTest parseAbsDir x Nothing
-        succeeding x with = parserTest parseAbsDir x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseAbsDir) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseAbsDir) x (Just with)
 
 -- | Tests for the tokenizer.
 parseRelDirSpec :: Spec
@@ -274,8 +274,8 @@ parseRelDirSpec =
      succeeding "foo\\\\bar////mu" (Path "foo\\bar\\mu\\")
      succeeding "foo\\\\bar\\.\\\\mu" (Path "foo\\bar\\mu\\")
 
-  where failing x = parserTest parseRelDir x Nothing
-        succeeding x with = parserTest parseRelDir x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseRelDir) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseRelDir) x (Just with)
 
 -- | Tests for the tokenizer.
 parseAbsFileSpec :: Spec
@@ -300,8 +300,8 @@ parseAbsFileSpec =
      succeeding "/\\?\\C:\\file.txt" (Path "\\\\?\\C:\\file.txt")
      succeeding "\\\\?\\C:\\\\\\folder\\.\\\\file.txt" (Path "\\\\?\\C:\\folder\\file.txt")
 
-  where failing x = parserTest parseAbsFile x Nothing
-        succeeding x with = parserTest parseAbsFile x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseAbsFile) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseAbsFile) x (Just with)
 
 -- | Tests for the tokenizer.
 parseRelFileSpec :: Spec
@@ -332,8 +332,8 @@ parseRelFileSpec =
      succeeding "foo\\\\bar\\\\\\\\mu.txt" (Path "foo\\bar\\mu.txt")
      succeeding "foo\\\\bar\\.\\\\mu.txt" (Path "foo\\bar\\mu.txt")
 
-  where failing x = parserTest parseRelFile x Nothing
-        succeeding x with = parserTest parseRelFile x (Just with)
+  where failing x = parserTest (either (const Nothing) Just . parseRelFile) x Nothing
+        succeeding x with = parserTest (either (const Nothing) Just . parseRelFile) x (Just with)
 
 -- | Parser test.
 parserTest :: (Show a1,Show a,Eq a1)

@@ -17,11 +17,18 @@ matrix:
   include:
     - env: TYPE=cabal CABALVER=3.0 GHCVER=8.6.5
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.6.5], sources: [hvr-ghc]}}
+    - env: TYPE=cabal CABALVER=3.0 GHCVER=8.6.5 ARGS="-fexcept"
+      addons: {apt: {packages: [cabal-install-3.0,ghc-8.6.5], sources: [hvr-ghc]}}
     - env: CABALVER=3.0 GHCVER=8.8.3
+      addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.3], sources: [hvr-ghc]}}
+    - env: CABALVER=3.0 GHCVER=8.8.3 ARGS="-fexcept"
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.3], sources: [hvr-ghc]}}
     - env: TYPE=cabal CABALVER=3.0 GHCVER=8.10.1
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.10.1], sources: [hvr-ghc]}}
+    - env: TYPE=cabal CABALVER=3.0 GHCVER=8.10.1 ARGS="-fexcept"
+      addons: {apt: {packages: [cabal-install-3.0,ghc-8.10.1], sources: [hvr-ghc]}}
     - env: TYPE=stack ARGS="--stack-yaml stack.yaml"
+    - env: TYPE=stack ARGS="--stack-yaml stack.yaml --flag path:except"
 
 before_install:
   - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH

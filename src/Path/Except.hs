@@ -1,8 +1,9 @@
 -- | This library provides a well-typed representation of paths in a filesystem
 -- directory tree.
 --
--- Both "Path.Posix" and "Path.Windows" provide the same interface. This
--- module will reexport the appropriate module for your platform.
+-- Both "Path.Except.Posix" and "Path.Except.Windows" provide the same
+-- interface. This module will reexport the appropriate module for your
+-- platform.
 
 {-# LANGUAGE CPP #-}
 
